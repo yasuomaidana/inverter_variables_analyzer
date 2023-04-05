@@ -2,12 +2,22 @@ from typing import List
 from typing import Tuple
 from fractions import Fraction
 
+import matplotlib.pyplot as plt
+
+from transformations.Clarke import clark
+import numpy as np
+
 delta_u = 0, 3
 delta_v = 1, 4
 delta_w = 2, 5
 
-table_format = " {:<4} " * 6 + " | " + " {:<4} " * 3
-header = table_format.format("U1", "V2", "W1", "U2", "V2", "W2", "U", "V", "W")
+table_format = " {:<4} " * 6 + " | " + " {:<4} " * 3 + " | " + " {:<4} " * 2
+header = table_format.format("U1", "V2", "W1", "U2", "V2", "W2", "U", "V", "W", "alp", "bet")
+label_format = "({},{},{})({},{},{})"
+labels = []
+alphas = []
+betas = []
+points = dict()
 
 
 def to_binary_list(number: int) -> List[int]:
@@ -33,11 +43,23 @@ def print_voltages(state: List[int]):
     u = [delta_u, delta_v, delta_w]
     v = [delta_v, delta_u, delta_w]
     w = [delta_w, delta_v, delta_u]
-    U = Fraction(delta_voltage(state, u)).limit_denominator(6)
-    V = Fraction(delta_voltage(state, v)).limit_denominator(6)
-    W = Fraction(delta_voltage(state, w)).limit_denominator(6)
 
-    to_print = tuple(state) + (str(U), str(V), str(W))
+    u = Fraction(delta_voltage(state, u)).limit_denominator(6)
+    v = Fraction(delta_voltage(state, v)).limit_denominator(6)
+    w = Fraction(delta_voltage(state, w)).limit_denominator(6)
+
+    al, bet, _ = clark(np.array([u, v, w]))
+
+    p_labels = points.get((al, bet), list())
+    p_labels.append(label_format.format(*tuple(state)))
+    points[(al, bet)] = p_labels
+
+    al, bet = Fraction(al).limit_denominator(3), Fraction(bet).limit_denominator(3)
+
+    alphas.append(al)
+    betas.append(bet)
+
+    to_print = tuple(state) + (str(u), str(v), str(w)) + (str(al), str(bet))
     print(table_format.format(*to_print))
 
 
@@ -45,3 +67,15 @@ states = [to_binary_list(state) for state in range(64)]
 print(header)
 for i in states:
     print_voltages(i)
+
+plt.scatter(alphas, betas)
+
+i = 0
+for alpha, beta in points.keys():
+    text = "\n".join(points[(alpha, beta)])
+    plt.annotate(text, (alpha, beta))
+    print("{} labels:{}".format(i, points[(alpha, beta)]))
+    i += 1
+
+
+plt.show()
