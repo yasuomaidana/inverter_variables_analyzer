@@ -1,6 +1,4 @@
 from typing import List, Tuple
-from typing import Tuple
-from fractions import Fraction
 from transformations.Clarke import clark
 import numpy as np
 
@@ -30,25 +28,68 @@ def delta_voltage(state: Tuple[int, ...], order: List[Tuple[int, int]]) -> float
     return 2 / 3 * delta_x - 1 / 3 * (delta_y + delta_z)
 
 
-def load_and_compare(state: Tuple[int, ...]):
+def get_uvw_from_state(state: Tuple[int, ...]):
     u = [delta_u, delta_v, delta_w]
     v = [delta_v, delta_u, delta_w]
     w = [delta_w, delta_v, delta_u]
 
-    u = Fraction(delta_voltage(state, u)).limit_denominator(6)
-    v = Fraction(delta_voltage(state, v)).limit_denominator(6)
-    w = Fraction(delta_voltage(state, w)).limit_denominator(6)
+    u = delta_voltage(state, u)
+    v = delta_voltage(state, v)
+    w = delta_voltage(state, w)
+    return u, v, w
 
+
+def load_and_compare(state: Tuple[int, ...]):
+    u, v, w = get_uvw_from_state(state)
     al, bet, _ = clark(np.array([u, v, w]))
 
     if not state[0] == 1:
         vectors[state] = tuple((al, bet))
     else:
         negated_state = tuple((1 - i for i in state))
-        print("Symmetry in {} and {} at {}".format(negated_state, state, vectors[negated_state]))
         assert vectors[negated_state] == tuple((-al, -bet))
 
 
 states = [to_binary_list(state) for state in range(64)]
 for state in states:
     load_and_compare(state)
+
+
+class BigSector:
+    zero = (0, 0, 0, 0, 0, 0)
+
+    class Point:
+        def __init__(self, origin: Tuple[int, ...], end: List[Tuple[int, ...]]):
+            al, bet, _ = clark(np.array(get_uvw_from_state(origin)))
+            self.origin = al, bet
+            for state in end:
+                assert get_uvw_from_state(end[0]) == get_uvw_from_state(state)
+
+            al, bet, _ = clark(np.array(get_uvw_from_state(end[0])))
+            self.end = al,
+            self.states = end
+
+    def __init__(self):
+        self.points = []
+        point = self.Point
+        s1 = (0, 0, 0, 0, 0, 1)
+        s2 = (0, 1, 0, 0, 1, 1)
+        self.points.append(point(self.zero, [s1, s2]))
+
+        s1 = (0, 0, 0, 0, 1, 1)
+        s2 = (1, 0, 0, 0, 0, 0)
+        self.points.append(point(self.zero, [s1, s2]))
+
+        s1 = (1, 0, 0, 0, 0, 1)
+        s2 = (1, 1, 0, 0, 1, 1)
+        self.points.append(point(self.zero, [s1, s2]))
+
+        s1 = (1, 1, 0, 0, 0, 1)
+        self.points.append(point(self.zero, [s1]))
+
+        s1 = (1, 0, 0, 0, 1, 1)
+        self.points.append(point(self.zero, [s1]))
+
+
+sector = BigSector()
+print()
