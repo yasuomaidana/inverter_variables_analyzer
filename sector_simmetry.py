@@ -1,3 +1,4 @@
+from fractions import Fraction
 from typing import List, Tuple
 from transformations.Clarke import clark
 import numpy as np
@@ -66,8 +67,12 @@ class BigSector:
                 assert get_uvw_from_state(end[0]) == get_uvw_from_state(state)
 
             al, bet, _ = clark(np.array(get_uvw_from_state(end[0])))
-            self.end = al,
+            self.end = al, bet
             self.states = end
+
+        def __str__(self):
+            coordinates = [str(Fraction(i).limit_denominator(3)) for i in self.end]
+            return f"States {self.states}, located: {coordinates}"
 
     def __init__(self):
         self.points = []
@@ -92,4 +97,6 @@ class BigSector:
 
 
 sector = BigSector()
-print()
+
+for point in sector.points:
+    print(point)
