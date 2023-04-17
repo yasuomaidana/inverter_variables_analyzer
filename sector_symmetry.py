@@ -117,27 +117,35 @@ class BigSector:
         s1 = (1, 0, 0, 0, 1, 1)
         self.points.append(point_builder((0, 0, 0, 0, 1, 1), [s1]))
 
+        self.points.insert(0, point_builder(self.zero, [self.zero]))
 
-sector = BigSector()
-lims = (-1.75, 1.75)
-plt.xlim(lims)
-plt.ylim(lims)
-i = 1
-for point in sector.points:
-    plt.arrow(point.origin[0], point.origin[1], point.end[0] - point.origin[0], point.end[1] - point.origin[1],
-              ls=':', color="black")
-    plt.annotate(str(i) + ":\n" + point.states_str(), xy=(point.end[0], point.end[1]))
-    plt.plot(point.end[0], point.end[1], marker="o", color="black")
-    print(i, point)
 
-    point2 = point.symmetric()
+if __name__ == "__main__":
 
-    plt.arrow(point2.origin[0], point2.origin[1], point2.end[0] - point2.origin[0], point2.end[1] - point2.origin[1],
-              linestyle='--', color="red")
-    plt.annotate(str(i) + "':\n" + point2.states_str(), xy=(point2.end[0], point2.end[1]))
-    plt.plot(point2.end[0], point2.end[1], marker="o", color="red")
-    print(str(i) + "'", point2)
+    sector = BigSector()
+    lims = (-1.75, 1.75)
+    plt.xlim(lims)
+    plt.ylim(lims)
+    i = 0
+    for point in sector.points:
+        if i == 0:
+            i += 1
+            continue
+        plt.arrow(point.origin[0], point.origin[1], point.end[0] - point.origin[0], point.end[1] - point.origin[1],
+                  ls=':', color="black")
+        plt.annotate(str(i) + ":\n" + point.states_str(), xy=(point.end[0], point.end[1]))
+        plt.plot(point.end[0], point.end[1], marker="o", color="black")
+        print(i, point)
 
-    i += 1
+        point2 = point.symmetric()
 
-plt.show()
+        plt.arrow(point2.origin[0], point2.origin[1], point2.end[0] - point2.origin[0],
+                  point2.end[1] - point2.origin[1],
+                  linestyle='--', color="red")
+        plt.annotate(str(i) + "':\n" + point2.states_str(), xy=(point2.end[0], point2.end[1]))
+        plt.plot(point2.end[0], point2.end[1], marker="o", color="red")
+        print(str(i) + "'", point2)
+
+        i += 1
+
+    plt.show()
