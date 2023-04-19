@@ -39,11 +39,23 @@ def load_and_compare(state: Tuple[int], saved_vectors: dict):
 
 
 class Point:
+    def __init__(self, alpha: float, beta: float):
+        self.alpha, self.beta = alpha, beta
+
+    def __sub__(self, other):
+        return self.alpha - other.alpha, self.beta - other.beta
+
+    def __str__(self):
+        return f"Alpha: {self.alpha}, Beta: {self.beta}"
+
+
+class PointFromNumber(Point):
     def __init__(self, voltage_numbers: Union[int, Tuple[int, ...]]):
         """
 
         :type voltage_numbers: Voltage number :int or voltage number :list
         """
+
         self.voltage_numbers = voltage_numbers
         if isinstance(voltage_numbers, int):
             voltage_numbers = tuple([voltage_numbers])
@@ -53,21 +65,17 @@ class Point:
         for state in self.states:
             assert get_uvw_from_state(self.states[0]) == get_uvw_from_state(state)
         al, bet, _ = clark(np.array(get_uvw_from_state(self.states[0])))
-
-        self.alpha, self.beta = al, bet
+        super().__init__(al, bet)
 
     def symmetric(self):
         negated_states = tuple(negate(state) for state in self.states)
         numbers = tuple(get_number_from_state(ns) for ns in negated_states)
         if len(numbers) == 1:
             numbers = numbers[0]
-        return Point(numbers)
-
-    def __sub__(self, other):
-        return self.alpha - other.alpha, self.beta - other.beta
+        return PointFromNumber(numbers)
 
     def __str__(self):
-        return f"Numbers {self.voltage_numbers}, States {self.states}, Alpha: {self.alpha}, Beta: {self.beta}"
+        return f"Numbers {self.voltage_numbers}, States {self.states}, "+Point.__str__(self)
 
     def state_str(self, show_number: bool = False):
         state_format = "({},{},{})({},{},{})"
@@ -84,7 +92,7 @@ class Point:
 
 
 class Vector:
-    def __init__(self, origin: Point, end: Point):
+    def __init__(self, origin: PointFromNumber, end: PointFromNumber):
         self.origin = origin
         self.end = end
         self.delta_alpha, self.delta_beta = end - origin
@@ -109,12 +117,12 @@ if __name__ == "__main__":
     for state in states:
         load_and_compare(state, vectors)
 
-    point0 = Point(0)
-    point1 = Point((1, 19, 37, 48, 55, 57))
-    point2 = Point((3, 32, 39, 41, 50, 59))
-    point3 = Point(35)
-    point4 = Point((33, 51))
-    point5 = Point(49)
+    point0 = PointFromNumber(0)
+    point1 = PointFromNumber((1, 19, 37, 48, 55, 57))
+    point2 = PointFromNumber((3, 32, 39, 41, 50, 59))
+    point3 = PointFromNumber(35)
+    point4 = PointFromNumber((33, 51))
+    point5 = PointFromNumber(49)
 
     testing_vectors = [Vector(point0, point1), Vector(point0, point2), Vector(point2, point3), Vector(point1, point4),
                        Vector(point1, point5)]
