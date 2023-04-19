@@ -1,37 +1,15 @@
 from fractions import Fraction
-from typing import List, Tuple
+from functools import reduce
+from typing import List, Tuple, Union, Any
 from transformations.Clarke import clark
 import numpy as np
 import matplotlib.pyplot as plt
 
-delta_u = 0, 3
-delta_v = 1, 4
-delta_w = 2, 5
-
-vectors = dict()
+from voltages_calculator import to_binary_list, delta_voltage, delta_u, delta_v, delta_w
 
 
-def to_binary_list(number: int) -> Tuple[int, ...]:
-    return tuple([int(i) for i in "{0:06b}".format(number)])
-
-
-def negate(or_state):
+def negate(or_state) -> Tuple[Union[int, Any], ...]:
     return tuple((1 - gate for gate in or_state))
-
-
-def get_delta(state: Tuple[int, ...], delta: Tuple[int, int]) -> float:
-    gate_1 = delta[0]
-    gate_2 = delta[1]
-    voltage_1 = 1 / 2 if state[gate_1] == 1 else -1 / 2
-    voltage_2 = 1 / 2 if state[gate_2] == 1 else -1 / 2
-    return voltage_1 - voltage_2
-
-
-def delta_voltage(state: Tuple[int, ...], order: List[Tuple[int, int]]) -> float:
-    delta_x = get_delta(state, order[0])
-    delta_y = get_delta(state, order[1])
-    delta_z = get_delta(state, order[2])
-    return 2 / 3 * delta_x - 1 / 3 * (delta_y + delta_z)
 
 
 def get_uvw_from_state(state: Tuple[int, ...]):
@@ -45,106 +23,117 @@ def get_uvw_from_state(state: Tuple[int, ...]):
     return u, v, w
 
 
-def load_and_compare(state: Tuple[int, ...]):
+def get_number_from_state(state: Tuple[int, ...]):
+    return reduce(lambda n, x: n + 2 ** (len(state) - 1 - x[0]) * x[1], enumerate(state), 0)
+
+
+def load_and_compare(state: Tuple[int], saved_vectors: dict):
     u, v, w = get_uvw_from_state(state)
     al, bet, _ = clark(np.array([u, v, w]))
 
     if not state[0] == 1:
-        vectors[state] = tuple((al, bet))
+        saved_vectors[state] = tuple((al, bet))
     else:
         negated_state = tuple((1 - i for i in state))
-        assert vectors[negated_state] == tuple((-al, -bet))
+        assert saved_vectors[negated_state] == tuple((-al, -bet))
 
 
-states = [to_binary_list(state) for state in range(64)]
-for state in states:
-    load_and_compare(state)
+class Point:
+    def __init__(self, voltage_numbers: Union[int, Tuple[int, ...]]):
+        """
+
+        :type voltage_numbers: Voltage number :int or voltage number :list
+        """
+        self.voltage_numbers = voltage_numbers
+        if isinstance(voltage_numbers, int):
+            voltage_numbers = tuple([voltage_numbers])
+
+        self.states = [to_binary_list(voltage_number) for voltage_number in voltage_numbers]
+
+        for state in self.states:
+            assert get_uvw_from_state(self.states[0]) == get_uvw_from_state(state)
+        al, bet, _ = clark(np.array(get_uvw_from_state(self.states[0])))
+
+        self.alpha, self.beta = al, bet
+
+    def symmetric(self):
+        negated_states = tuple(negate(state) for state in self.states)
+        numbers = tuple(get_number_from_state(ns) for ns in negated_states)
+        if len(numbers) == 1:
+            numbers = numbers[0]
+        return Point(numbers)
+
+    def __sub__(self, other):
+        return self.alpha - other.alpha, self.beta - other.beta
+
+    def __str__(self):
+        return f"Numbers {self.voltage_numbers}, States {self.states}, Alpha: {self.alpha}, Beta: {self.beta}"
+
+    def state_str(self, show_number: bool = False):
+        state_format = "({},{},{})({},{},{})"
+        state_str = ""
+        if isinstance(self.voltage_numbers, int):
+            numbers = [self.voltage_numbers]
+        else:
+            numbers = self.voltage_numbers
+
+        for state, number in zip(self.states, numbers):
+            state_str += state_format.format(*state) + f":{number}\n" if show_number else "\n"
+
+        return state_str
 
 
-class BigSector:
-    zero = (0, 0, 0, 0, 0, 0)
+class Vector:
+    def __init__(self, origin: Point, end: Point):
+        self.origin = origin
+        self.end = end
+        self.delta_alpha, self.delta_beta = end - origin
 
-    class Point:
-        def __init__(self, origin: Tuple[int, ...], end: List[Tuple[int, ...]]):
-            al, bet, _ = clark(np.array(get_uvw_from_state(origin)))
-            self.origin_state = origin
-            self.end_states = end
-            self.origin = al, bet
-            for state in end:
-                assert get_uvw_from_state(end[0]) == get_uvw_from_state(state)
+    def plot(self):
+        return self.origin.alpha, self.origin.beta, self.delta_alpha, self.delta_beta
 
-            al, bet, _ = clark(np.array(get_uvw_from_state(end[0])))
-            self.end = al, bet
-            self.states = end
+    def symmetric(self):
+        return Vector(self.origin.symmetric(), self.end.symmetric())
 
-        def __str__(self):
-            coordinates = [str(Fraction(i).limit_denominator(3)) for i in self.end]
-            return f"States {self.states}, located: {coordinates}"
-
-        def states_str(self):
-            state_format = "({},{},{})({},{},{})"
-            state_str = ""
-            counter = 0
-            for state in self.states:
-                state_str += state_format.format(*state) + "\n"
-                counter += 1
-            return state_str
-
-        def symmetric(self):
-
-            neg_or = negate(self.origin_state)
-            neg_end = [negate(state) for state in self.end_states]
-            return BigSector.Point(neg_or, neg_end)
-
-    def __init__(self):
-        self.points = []
-        point_builder = self.Point
-        s1 = (0, 0, 0, 0, 0, 1)
-        s2 = (0, 1, 0, 0, 1, 1)
-        self.points.append(point_builder(self.zero, [s1, s2]))
-
-        s1 = (0, 0, 0, 0, 1, 1)
-        s2 = (1, 0, 0, 0, 0, 0)
-        self.points.append(point_builder(self.zero, [s1, s2]))
-
-        s1 = (1, 0, 0, 0, 0, 1)
-        s2 = (1, 1, 0, 0, 1, 1)
-        self.points.append(point_builder(self.points[-1].states[0], [s1, s2]))
-
-        s1 = (1, 1, 0, 0, 0, 1)
-        self.points.append(point_builder((0, 0, 0, 0, 0, 1), [s1]))
-
-        s1 = (1, 0, 0, 0, 1, 1)
-        self.points.append(point_builder((0, 0, 0, 0, 1, 1), [s1]))
-
-        self.points.insert(0, point_builder(self.zero, [self.zero]))
+    def __str__(self):
+        return f"Origin: {self.origin}\nEnd: {self.end}\nDelta Alpha: {self.delta_alpha}, Delta Beta: {self.delta_beta}"
 
 
 if __name__ == "__main__":
+    states = [to_binary_list(state) for state in range(64)]
 
-    sector = BigSector()
+    vectors = dict()
+    for state in states:
+        load_and_compare(state, vectors)
+
+    point0 = Point(0)
+    point1 = Point((1, 19, 37, 48, 55, 57))
+    point2 = Point((3, 32, 39, 41, 50, 59))
+    point3 = Point(35)
+    point4 = Point((33, 51))
+    point5 = Point(49)
+
+    testing_vectors = [Vector(point0, point1), Vector(point0, point2), Vector(point2, point3), Vector(point1, point4),
+                       Vector(point1, point5)]
+
     lims = (-1.75, 1.75)
     plt.xlim(lims)
     plt.ylim(lims)
     i = 0
-    for point in sector.points:
-        if i == 0:
-            i += 1
-            continue
-        plt.arrow(point.origin[0], point.origin[1], point.end[0] - point.origin[0], point.end[1] - point.origin[1],
-                  ls=':', color="black")
-        plt.annotate(str(i) + ":\n" + point.states_str(), xy=(point.end[0], point.end[1]))
-        plt.plot(point.end[0], point.end[1], marker="o", color="black")
-        print(i, point)
+    for vector in testing_vectors:
+        plt.arrow(*vector.plot(), ls=':', color="black")
+        plt.annotate("P:" + str(i + 1) + ":\n" + vector.end.state_str(True), xy=(vector.end.alpha, vector.end.beta))
+        plt.plot(vector.end.alpha, vector.end.beta, marker="o", color="black")
+        print(i, vector)
 
-        point2 = point.symmetric()
-
-        plt.arrow(point2.origin[0], point2.origin[1], point2.end[0] - point2.origin[0],
-                  point2.end[1] - point2.origin[1],
-                  linestyle='--', color="red")
-        plt.annotate(str(i) + "':\n" + point2.states_str(), xy=(point2.end[0], point2.end[1]))
-        plt.plot(point2.end[0], point2.end[1], marker="o", color="red")
-        print(str(i) + "'", point2)
+        # point2 = vector.symmetric()
+        #
+        # plt.arrow(point2.origin[0], point2.origin[1], point2.end[0] - point2.origin[0],
+        #           point2.end[1] - point2.origin[1],
+        #           linestyle='--', color="red")
+        # plt.annotate(str(i) + "':\n" + point2.states_str(), xy=(point2.end[0], point2.end[1]))
+        # plt.plot(point2.end[0], point2.end[1], marker="o", color="red")
+        # print(str(i) + "'", point2)
 
         i += 1
 
