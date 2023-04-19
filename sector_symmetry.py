@@ -96,7 +96,10 @@ class Vector:
         return Vector(self.origin.symmetric(), self.end.symmetric())
 
     def __str__(self):
-        return f"Origin: {self.origin}\nEnd: {self.end}\nDelta Alpha: {self.delta_alpha}, Delta Beta: {self.delta_beta}"
+        al, bet = Fraction(self.origin.alpha).limit_denominator(3), Fraction(self.origin.beta).limit_denominator(3)
+        eal, ebet = Fraction(self.end.alpha).limit_denominator(3), Fraction(self.end.beta).limit_denominator(3)
+        return f"Origin:\n\t al: {al}, bet: {bet},\nEnd: \n\t al: {eal}, " \
+               f"bet: {ebet}\nDelta Alpha: {self.delta_alpha}, Delta Beta: {self.delta_beta}"
 
 
 if __name__ == "__main__":
@@ -124,16 +127,17 @@ if __name__ == "__main__":
         plt.arrow(*vector.plot(), ls=':', color="black")
         plt.annotate("P:" + str(i + 1) + ":\n" + vector.end.state_str(True), xy=(vector.end.alpha, vector.end.beta))
         plt.plot(vector.end.alpha, vector.end.beta, marker="o", color="black")
-        print(i, vector)
+        print("P:" + str(i + 1) + ":\n" + str(vector))
+        print(":" * 15)
 
-        # point2 = vector.symmetric()
-        #
-        # plt.arrow(point2.origin[0], point2.origin[1], point2.end[0] - point2.origin[0],
-        #           point2.end[1] - point2.origin[1],
-        #           linestyle='--', color="red")
-        # plt.annotate(str(i) + "':\n" + point2.states_str(), xy=(point2.end[0], point2.end[1]))
-        # plt.plot(point2.end[0], point2.end[1], marker="o", color="red")
-        # print(str(i) + "'", point2)
+        vector_s = vector.symmetric()
+
+        plt.arrow(*vector_s.plot(), ls=':', color="red")
+        plt.annotate("P:" + str(i + 1) + "':\n" + vector_s.end.state_str(True),
+                     xy=(vector_s.end.alpha, vector_s.end.beta))
+        plt.plot(vector_s.end.alpha, vector_s.end.beta, marker="o", color="red")
+        print("P:" + str(i + 1) + "':\n" + str(vector_s))
+        print("--" * 15)
 
         i += 1
 
