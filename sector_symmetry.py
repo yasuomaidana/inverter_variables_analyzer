@@ -46,7 +46,12 @@ class Point:
         return self.alpha - other.alpha, self.beta - other.beta
 
     def __str__(self):
-        return f"Alpha: {self.alpha}, Beta: {self.beta}"
+        return f"Alpha: {self.alpha:0.3f}, Beta: {self.beta:0.3f}"
+
+    def plot(self, plotter=plt, color="black", marker="o", point_message=None):
+        plotter.plot(self.alpha, self.beta, marker=marker, color=color)
+        if point_message:
+            plotter.annotate(point_message, xy=(self.alpha, self.beta))
 
 
 class PointFromNumber(Point):
@@ -75,7 +80,7 @@ class PointFromNumber(Point):
         return PointFromNumber(numbers)
 
     def __str__(self):
-        return f"Numbers {self.voltage_numbers}, States {self.states}, "+Point.__str__(self)
+        return f"Numbers {self.voltage_numbers}, States {self.states}, " + Point.__str__(self)
 
     def state_str(self, show_number: bool = False):
         state_format = "({},{},{})({},{},{})"
@@ -92,22 +97,51 @@ class PointFromNumber(Point):
 
 
 class Vector:
-    def __init__(self, origin: PointFromNumber, end: PointFromNumber):
+    def __init__(self, origin: Point, end: Point):
         self.origin = origin
         self.end = end
         self.delta_alpha, self.delta_beta = end - origin
 
-    def plot(self):
-        return self.origin.alpha, self.origin.beta, self.delta_alpha, self.delta_beta
+    def plot(self, plotter=plt, color="black", ls=":", marker="o", show_end=True, end_message=None, show_begin=False,
+             begin_message=None):
+        to_plot = self.origin.alpha, self.origin.beta, self.delta_alpha, self.delta_beta
 
-    def symmetric(self):
-        return Vector(self.origin.symmetric(), self.end.symmetric())
+        plotter.arrow(*to_plot, ls=ls, color=color)
+        if show_end:
+            self.end.plot(plotter=plotter, color=color, marker=marker, point_message=end_message)
+        if show_begin:
+            self.origin.plot(plotter=plotter, color=color, marker=marker, point_message=begin_message)
+
+    def to_array(self):
+        return np.array([[self.delta_alpha], [self.delta_beta]])
 
     def __str__(self):
         al, bet = Fraction(self.origin.alpha).limit_denominator(3), Fraction(self.origin.beta).limit_denominator(3)
         eal, ebet = Fraction(self.end.alpha).limit_denominator(3), Fraction(self.end.beta).limit_denominator(3)
         return f"Origin:\n\t al: {al}, bet: {bet},\nEnd: \n\t al: {eal}, " \
                f"bet: {ebet}\nDelta Alpha: {self.delta_alpha}, Delta Beta: {self.delta_beta}"
+
+    def __mul__(self, other: float):
+        n_d_al = other * self.delta_alpha
+        n_d_bet = other * self.delta_beta
+        new_end = Point(self.origin.alpha + n_d_al, self.origin.beta + n_d_bet)
+        return Vector(self.origin, new_end)
+
+    def concatenate(self, other):
+        last_al = other.end.alpha
+        last_bet = other.end.beta
+        end = Point(self.delta_alpha + last_al, self.delta_beta + last_bet)
+        return Vector(other.end, end)
+
+
+class VoltageLevelVector(Vector):
+    def __init__(self, origin: PointFromNumber, end: PointFromNumber):
+        self.origin = origin
+        self.end = end
+        super().__init__(origin, end)
+
+    def symmetric(self):
+        return VoltageLevelVector(self.origin.symmetric(), self.end.symmetric())
 
 
 if __name__ == "__main__":
@@ -124,26 +158,25 @@ if __name__ == "__main__":
     point4 = PointFromNumber((33, 51))
     point5 = PointFromNumber(49)
 
-    testing_vectors = [Vector(point0, point1), Vector(point0, point2), Vector(point2, point3), Vector(point1, point4),
-                       Vector(point1, point5)]
+    testing_vectors = [VoltageLevelVector(point0, point1), VoltageLevelVector(point0, point2),
+                       VoltageLevelVector(point2, point3), VoltageLevelVector(point1, point4),
+                       VoltageLevelVector(point1, point5)]
 
     lims = (-1.75, 1.75)
     plt.xlim(lims)
     plt.ylim(lims)
     i = 0
     for vector in testing_vectors:
-        plt.arrow(*vector.plot(), ls=':', color="black")
-        plt.annotate("P:" + str(i + 1) + ":\n" + vector.end.state_str(True), xy=(vector.end.alpha, vector.end.beta))
-        plt.plot(vector.end.alpha, vector.end.beta, marker="o", color="black")
+        message = "P:" + str(i + 1) + ":\n" + vector.end.state_str(True)
+        vector.plot(plotter=plt, end_message=message)
+
         print("P:" + str(i + 1) + ":\n" + str(vector))
         print(":" * 15)
 
         vector_s = vector.symmetric()
+        message = "P:" + str(i + 1) + "':\n" + vector_s.end.state_str(True)
+        vector_s.plot(plotter=plt, color="red", end_message=message)
 
-        plt.arrow(*vector_s.plot(), ls=':', color="red")
-        plt.annotate("P:" + str(i + 1) + "':\n" + vector_s.end.state_str(True),
-                     xy=(vector_s.end.alpha, vector_s.end.beta))
-        plt.plot(vector_s.end.alpha, vector_s.end.beta, marker="o", color="red")
         print("P:" + str(i + 1) + "':\n" + str(vector_s))
         print("--" * 15)
 
