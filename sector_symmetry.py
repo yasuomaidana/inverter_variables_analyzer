@@ -5,7 +5,8 @@ from transformations.Clarke import clark
 import numpy as np
 import matplotlib.pyplot as plt
 
-from voltages_calculator import to_binary_list, delta_voltage, delta_u, delta_v, delta_w
+from voltages_calculator import to_binary_list, delta_voltage, delta_u, delta_v, delta_w, get_number_from_state, \
+    convert_number_to_convention
 
 
 def negate(or_state) -> Tuple[Union[int, Any], ...]:
@@ -21,10 +22,6 @@ def get_uvw_from_state(state: Tuple[int, ...]):
     v = delta_voltage(state, v)
     w = delta_voltage(state, w)
     return u, v, w
-
-
-def get_number_from_state(state: Tuple[int, ...]):
-    return reduce(lambda n, x: n + 2 ** (len(state) - 1 - x[0]) * x[1], enumerate(state), 0)
 
 
 def load_and_compare(state: Tuple[int], saved_vectors: dict):
@@ -61,11 +58,11 @@ class PointFromNumber(Point):
         :type voltage_numbers: Voltage number :int or voltage number :list
         """
 
-        self.voltage_numbers = voltage_numbers
         if isinstance(voltage_numbers, int):
             voltage_numbers = tuple([voltage_numbers])
 
         self.states = [to_binary_list(voltage_number) for voltage_number in voltage_numbers]
+        self.voltage_numbers = voltage_numbers
 
         for state in self.states:
             assert get_uvw_from_state(self.states[0]) == get_uvw_from_state(state)
@@ -85,13 +82,12 @@ class PointFromNumber(Point):
     def state_str(self, show_number: bool = False):
         state_format = "({},{},{})({},{},{})"
         state_str = ""
-        if isinstance(self.voltage_numbers, int):
-            numbers = [self.voltage_numbers]
-        else:
-            numbers = self.voltage_numbers
+
+        numbers = self.voltage_numbers
 
         for state, number in zip(self.states, numbers):
-            state_str += state_format.format(*state) + f":{number}\n" if show_number else "\n"
+            inv1, inv2 = convert_number_to_convention(number)
+            state_str += state_format.format(*state) + f":({inv1},{inv2})\n" if show_number else "\n"
 
         return state_str
 

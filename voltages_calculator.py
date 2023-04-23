@@ -1,3 +1,4 @@
+from functools import reduce
 from typing import List
 from typing import Tuple
 from fractions import Fraction
@@ -14,6 +15,17 @@ delta_w = 2, 5
 
 def to_binary_list(number: int) -> Tuple[int]:
     return tuple([int(bit) for bit in "{0:06b}".format(number)])
+
+
+def get_number_from_state(state: Tuple[int, ...]):
+    return reduce(lambda n, x: n + 2 ** (len(state) - 1 - x[0]) * x[1], enumerate(state), 0)
+
+
+def convert_number_to_convention(number: int):
+    binaries = to_binary_list(number)
+    inverter_1 = binaries[0:3]
+    inverter_2 = binaries[3:]
+    return get_number_from_state(inverter_1), get_number_from_state(inverter_2)
 
 
 def get_delta(state: Tuple[int, ...], delta: Tuple[int, int]) -> float:
@@ -43,7 +55,7 @@ def print_voltages(state: Tuple[int], voltage_number: int):
     al, bet, _ = clark(np.array([u, v, w]))
 
     p_labels = points.get((al, bet), list())
-    p_labels.append(label_format.format(*tuple(state)) + f":{voltage_number}")
+    p_labels.append(label_format.format(*tuple(state)) + f":{convert_number_to_convention(voltage_number)}")
 
     points[(al, bet)] = p_labels
 
