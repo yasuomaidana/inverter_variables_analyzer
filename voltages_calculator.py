@@ -55,7 +55,7 @@ def print_voltages(state: Tuple[int], voltage_number: int):
     al, bet, _ = clark(np.array([u, v, w]))
 
     p_labels = points.get((al, bet), list())
-    p_labels.append(label_format.format(*tuple(state)) + f":{convert_number_to_convention(voltage_number)}")
+    p_labels.append(label_format.format(*tuple(state)) + f":{convert_number_to_convention(voltage_number)}::{voltage_number}")
 
     points[(al, bet)] = p_labels
 
